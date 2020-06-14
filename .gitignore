@@ -1,0 +1,4 @@
+/node_modules
+/antTaskLogs
+/.vscode
+.DS_Store
