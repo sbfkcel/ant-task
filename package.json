@@ -1,0 +1,16 @@
+{
+  "name": "ant-task",
+  "keywords": ["runner","script","auto"],
+  "description": "A script runner based on node.js",
+  "version": "1.0.1",
+  "main": "main.js",
+  "bin": {
+    "atask": "main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sbfkcel/ant-task.git"
+  },
+  "author": "sbfkcel@163.com",
+  "license": "MIT"
+}

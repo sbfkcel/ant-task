@@ -1,0 +1,11 @@
+414奇迹破坏神
+---
+node script/a.js 11
+node script/b.js 22
+node script/c.js 33
+
+415起源传说
+---
+node script/a.js 11
+node script/b.js 22
+node script/c.js 33
