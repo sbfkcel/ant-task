@@ -137,7 +137,7 @@ class AntTask{
 
                 // 正常退出
                 if(code === 0) {
-                    resolve(`✔️ ${taskName}}\r\n  结束：${eTimeFormat} ⠇ 用时：${time}\r\n`);
+                    resolve(`✔ ${taskName}}\r\n  结束：${eTimeFormat} ⠇ 用时：${time}\r\n`);
                 // 意外退出
                 }else{
                     reject(`✘ ${taskName}}\r\n  结束：${eTimeFormat} ⠇ 用时：${time}\r\n`);
