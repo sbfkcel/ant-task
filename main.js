@@ -54,7 +54,7 @@ class AntTask{
     constructor(){
         const _ts = this;
         _ts.data = _ts.getData();
-        _ts.logDir = path.join(__dirname,'antTaskLogs');
+        _ts.logDir = process.argv[2] ? path.join(process.argv[2],'..','antTaskLogs') : 'antTaskLogs';
         _ts.taskCount = 0;
     }
     async init(){

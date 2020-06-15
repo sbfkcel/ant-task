@@ -38,6 +38,8 @@ python install.py
 atask task.txt
 ```
 
+> 日志文件输出在`任务配置文件同级目录/antTaskLogs/`中（按任务名称及子顺便顺序命名）。
+
 ## License
 
 MIT
