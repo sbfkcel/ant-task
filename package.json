@@ -2,7 +2,7 @@
   "name": "ant-task",
   "keywords": ["runner","script","auto"],
   "description": "A script runner based on node.js",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "main.js",
   "bin": {
     "atask": "main.js"
