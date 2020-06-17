@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 const fs = require('fs'),
     path = require('path'),
     childProcess = require('child_process'),
@@ -15,7 +14,16 @@ const fs = require('fs'),
             seconds = date.getSeconds();
         return `${year}.${fillIn(month)}.${fillIn(day)} ${fillIn(hours)}:${fillIn(minutes)}:${fillIn(seconds)}`;
     },
-    echoLine = str => console.log(new Array(60).join(str));
+    echoLine = str => console.log(new Array(60).join(str)),
+    arrDelItem = (arr,delContent) => {
+        let result = [];
+        arr.forEach(item => {
+            if(item !== delContent){
+                result.push(item);
+            };
+        });
+        return result;
+    };
 
 class Ing{
     constructor(str){
@@ -33,13 +41,13 @@ class Ing{
     }
     stop(){
         const _ts = this;
-        _ts.stdout.clearLine();
+        _ts.stdout.clearLine && _ts.stdout.clearLine();
         _ts.stdout.write('\r');
         clearInterval(_ts.loop);
     }
     update(){
         const _ts = this;
-        _ts.stdout.clearLine();
+        _ts.stdout.clearLine && _ts.stdout.clearLine();
         _ts.stdout.write(_ts.getText());
     }
     getText(){
@@ -154,15 +162,7 @@ class AntTask{
             getTaskObj = str => {
                 let result = {},
                     re = /"[^"]*"|'[^']*'|[^ ]*/ig,
-                    arr = (()=>{
-                        let result = [];
-                        str.match(re).forEach(item => {
-                            if(item !== ""){
-                                result.push(item);
-                            };
-                        });
-                        return result;
-                    })();
+                    arr = arrDelItem(str.match(re),'');
                 if(!arr.length){
                     throw new Error('无效的执行参数');
                 };
@@ -173,7 +173,7 @@ class AntTask{
         
         if(taskPathInfo.type === 'file'){
             let str = fs.readFileSync(taskPath,'utf8'),
-                strArr = str.split(/\r|\n/),
+                strArr = arrDelItem(str.split(/\r|\n/),''),
                 titleDelimiter = '---',
                 task;
 
