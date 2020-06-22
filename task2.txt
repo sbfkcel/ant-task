@@ -1,21 +1,20 @@
-a
+a2
+---
+# 说明
+sleep 1
+
+b2
 ---
 sleep 1
 
-b
----
-sleep 1
- 
-c
+c2
 ---
 sleep 1
 
-d
+d2
 ---
 sleep 1
 
-e
+e2
 ---
 sleep 1
-
-@include task1.txt

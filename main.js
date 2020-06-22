@@ -23,7 +23,43 @@ const fs = require('fs'),
             };
         });
         return result;
-    };
+    },
+    packageObj = require('./package.json'),
+    // 获取路径信息
+    getPathInfo = pathStr => {
+        const result = {};
+        try {
+            let stat = fs.statSync(pathStr);
+            //如果路径是一个目录，则返回目录信息
+            if (stat.isDirectory()) {
+                result.type = 'dir';
+                result.isExist = true;
+                let backPath = path.resolve(pathStr, '..'),  // 跳到路径上一级目录
+                    dirName = pathStr.replace(backPath, ''), // 去除上级目录路径
+                    re = /\/|\\/g;
+                result.name = dirName.replace(re, '');       // 去除处理路径后的/\符号
+                return result;
+            };
+
+            if (stat.isFile()) {
+                result.type = 'file';
+                result.isExist = true;
+            };
+            if (stat.isSymbolicLink()){
+                result.type = 'symlink';
+                result.isExist = true;
+            };
+        } catch (error) {
+            // throw new Error(`${pathStr} 文件或目录不在磁盘上`);
+        };
+        result.extension = (() => {
+            let extName = path.extname(pathStr);
+            return extName[0] === '.' ? extName.slice(1) : extName;
+        })();
+        result.name = path.basename(pathStr, `.${result.extension}`);
+        return result;
+    },
+    cwdPath = process.cwd();
 
 class Ing{
     constructor(str){
@@ -58,16 +94,108 @@ class Ing{
     }
 }
 
+class TaskData{
+    constructor(taskPath){
+        const _ts = this;
+        _ts.path = taskPath;
+    }
+    getStr(){
+        const _ts = this;
+        let result,
+            getTaskStr,
+            count = 0;
+        result = (getTaskStr = (filePath,dirPath)=>{
+            count++;
+            if(count > 300){
+                console.log('任务模版嵌套次数过多，请检查是否存在循环嵌套');
+                return;
+            };
+            filePath = path.join(dirPath,filePath);
+            let filePathInfo = getPathInfo(filePath);
+            if(filePathInfo.type === 'file'){
+                let fileContent = fs.readFileSync(filePath,'utf8');
+                fileContent = fileContent.replace(/(@include)(\s{1,})(.*)/ig,item => {
+                    let fileArr = item.match(/(@include)(\s{1,})(.*)/i),
+                        fileName = fileArr[fileArr.length - 1].replace(/"|'/ig,'');
+                    return getTaskStr(fileName,path.join(dirPath,...(fileName.split('/')),'..'));
+                });
+                return fileContent;
+            }else{
+                throw new Error(`${filePath} 文件不存在`);
+            };
+        })(_ts.path,cwdPath);
+        return result;
+    }
+    getObj(){
+        const _ts = this;
+        let result,
+            taskStr = _ts.getStr(),
+            strArr = arrDelItem(taskStr.split(/\r|\n/),''),
+            titleDelimiter = new Array(4).join('-'),
+            getTaskObj = str => {
+                let result = {},
+                    re = /"[^"]*"|'[^']*'|[^ ]*/ig,
+                    arr = arrDelItem(str.match(re),'');
+                if(!arr.length){
+                    throw new Error('无效的执行参数');
+                };
+                result.exe = arr[0];
+                result.args = arr.slice(1);
+                return result;
+            },
+            task;
+        a:for(let i=0,len=strArr.length; i<len; i++){
+            let item = strArr[i];
+            if(
+                /^[#@\s]$/i.test(item[0]) ||        // 如果是注释或保留关键字
+                item === titleDelimiter ||          // 或是 title
+                item === ""                         // 又或者是任务内容为空，都跳出本次处理
+            ){
+                continue a;
+            };
+
+            if(strArr[i+1] === titleDelimiter){
+                result = result || {};
+                task = result[item] = [];
+                i++;
+            }else if(task){
+                task.push(getTaskObj(item));
+            };
+        };
+        return result;
+    }
+}
+
 class AntTask{
     constructor(){
         const _ts = this;
-        _ts.data = _ts.getData();
+        _ts.cwdPath = process.cwd();
+        
         _ts.logDir = process.argv[2] ? path.join(process.argv[2],'..','antTaskLogs') : 'antTaskLogs';
         _ts.taskCount = 0;
     }
     async init(){
         const _ts = this;
+        let taskConfigPath = process.argv[2];
+
+        if(taskConfigPath && taskConfigPath[0] === "-"){
+            switch (taskConfigPath.toLocaleLowerCase()) {
+                case '-v':
+                case '--version':
+                    console.log(packageObj.version);
+                break;
+                default:
+                    console.log(`确保当前目录下是否有默认任务配置文件 "task.txt"\r\n或指定任务配置文件，例如：atask "home/task.txt"`);
+                break;
+            };
+            return;
+        };
         try {
+            _ts.data = _ts.getData(taskConfigPath);
+            if(!_ts.data){
+                console.log('任务内容为空');
+                return;
+            };
             _ts.emptyDir(_ts.logDir);
             return await _ts.runTask(_ts.data);
         } catch (error) {
@@ -77,7 +205,6 @@ class AntTask{
     // 运行任务
     runTask(obj){
         const _ts = this;
-        console.log('\r\n');
         return new Promise(async(resolve,reject)=>{
             for(let key in obj){
                 _ts.taskCount++;
@@ -154,85 +281,21 @@ class AntTask{
         });
     }
     // 获取任务数据
-    getData(){
-        const _ts = this,
-            result = {};
-        let taskPath = process.argv[2] || 'task.txt',
-            taskPathInfo = _ts.getPathInfo(taskPath),
-            getTaskObj = str => {
-                let result = {},
-                    re = /"[^"]*"|'[^']*'|[^ ]*/ig,
-                    arr = arrDelItem(str.match(re),'');
-                if(!arr.length){
-                    throw new Error('无效的执行参数');
-                };
-                result.exe = arr[0];
-                result.args = arr.slice(1);
-                return result;
-            };
-        
+    getData(taskConfigPath){
+        const _ts = this;
+        let taskPath = taskConfigPath || 'task.txt',
+            taskPathInfo = getPathInfo(taskPath);
         if(taskPathInfo.type === 'file'){
-            let str = fs.readFileSync(taskPath,'utf8'),
-                strArr = arrDelItem(str.split(/\r|\n/),''),
-                titleDelimiter = '---',
-                task;
-
-            a:for(let i=0,len=strArr.length; i<len; i++){
-                let item = strArr[i];
-                // 行内容为标题分割符或空则跳出本次处理
-                if(item === titleDelimiter || item === ""){
-                    continue a;
-                };
-                if(strArr[i+1] === titleDelimiter){
-                    task = result[item] = [];
-                    i++;
-                }else if(task){
-                    task.push(getTaskObj(item));
-                };
-            };
+            return new TaskData(taskPath).getObj();
         }else{
-            throw new Error('缺少任务配置文件');
+            console.log('任务配置文件不存在');
         };
-        return result;
     }
-    // 获取路径信息
-    getPathInfo(pathStr){
-        const result = {};
-        try {
-            let stat = fs.statSync(pathStr);
-            //如果路径是一个目录，则返回目录信息
-            if (stat.isDirectory()) {
-                result.type = 'dir';
-                result.isExist = true;
-                let backPath = path.resolve(pathStr, '..'),  // 跳到路径上一级目录
-                    dirName = pathStr.replace(backPath, ''), // 去除上级目录路径
-                    re = /\/|\\/g;
-                result.name = dirName.replace(re, '');       // 去除处理路径后的/\符号
-                return result;
-            };
-
-            if (stat.isFile()) {
-                result.type = 'file';
-                result.isExist = true;
-            };
-            if (stat.isSymbolicLink()){
-                result.type = 'symlink';
-                result.isExist = true;
-            };
-        } catch (error) {
-            // throw new Error(`${pathStr} 文件或目录不在磁盘上`);
-        };
-        result.extension = (() => {
-            let extName = path.extname(pathStr);
-            return extName[0] === '.' ? extName.slice(1) : extName;
-        })();
-        result.name = path.basename(pathStr, `.${result.extension}`);
-        return result;
-    }
+    
     // 保证目录存在，并清空
     emptyDir(pathStr){
         const _ts = this;
-        let pathInfo = _ts.getPathInfo(pathStr),
+        let pathInfo = getPathInfo(pathStr),
             eachRm;
         if(pathInfo.type === 'dir'){
             (eachRm = dir=>{
@@ -242,7 +305,7 @@ class AntTask{
                 };
                 item.forEach(item => {
                     let itemPath = path.join(dir,item),
-                        itemPathInfo = _ts.getPathInfo(itemPath);
+                        itemPathInfo = getPathInfo(itemPath);
                     switch (itemPathInfo.type) {
                         case 'file':
                             fs.unlinkSync(itemPath);
@@ -261,6 +324,9 @@ class AntTask{
 
 let antTask = new AntTask();
 antTask.init().then(v => {
+    if(!v){
+        return;
+    };
     echoLine('*');
     console.log(`共有 ${v} 个任务执行完成`);
 }).catch(err => {
