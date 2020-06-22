@@ -17,5 +17,3 @@ sleep 1
 e
 ---
 sleep 1
-
-@include task1.txt

@@ -114,7 +114,7 @@ class TaskData{
             let filePathInfo = getPathInfo(filePath);
             if(filePathInfo.type === 'file'){
                 let fileContent = fs.readFileSync(filePath,'utf8');
-                fileContent = fileContent.replace(/(@include)(\s{1,})(.*)/ig,item => {
+                fileContent = fileContent.replace(/([\r\n]@include|^@include)(\s{1,})(.*)/ig,item => {
                     let fileArr = item.match(/(@include)(\s{1,})(.*)/i),
                         fileName = fileArr[fileArr.length - 1].replace(/"|'/ig,'');
                     return getTaskStr(fileName,path.join(dirPath,...(fileName.split('/')),'..'));
