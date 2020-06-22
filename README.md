@@ -32,6 +32,38 @@ node build.js
 python install.py
 ```
 
+#### 注释
+
+使用 `#` 注释任务内容
+
+```txt
+# 注释整个内容
+---
+sleep 2
+
+任务二
+---
+sleep 1
+# 注释子任务
+# sleep 2
+```
+
+### @include 包含其它任务内容
+
+```txt
+任务二
+---
+sleep 1
+
+@include task.txt
+# 或
+@include 'task.txt'
+# 或
+@include "task.txt"
+```
+
+> 包含的最大层级数限定为200
+
 ### 使用
 
 ```bash
