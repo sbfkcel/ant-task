@@ -98,26 +98,54 @@ class TaskData{
     constructor(taskPath){
         const _ts = this;
         _ts.path = taskPath;
+        _ts.nexusTree = {};
     }
+    /**
+     * 检查是否为死循环嵌套
+     * @returns {boolean}
+     */
+    isLimited(){
+        const _ts = this,
+            checkList = {};
+
+        for(let key in _ts.nexusTree){
+            let child = _ts.nexusTree[key].child;
+            checkList[key] = null;
+            for(let _key in child){
+                if(checkList[_key] !== undefined){
+                    return true;
+                };
+            };
+        };
+        return false;
+    }
+
+    /**
+     * 获取任务文本内容
+     * @returns {string}
+     */
     getStr(){
         const _ts = this;
         let result,
-            getTaskStr,
-            count = 0;
+            getTaskStr;
         result = (getTaskStr = (filePath,dirPath)=>{
-            count++;
-            if(count > 300){
-                console.log('任务模版嵌套次数过多，请检查是否存在循环嵌套');
-                return;
+            if(_ts.isLimited()){
+                throw new Error('任务存在死循环嵌套，请检查「@include」调用');
             };
             filePath = path.join(dirPath,filePath);
+            _ts.nexusTree[filePath] =  _ts.nexusTree[filePath] || {};
+            _ts.nexusTree[filePath]['child'] = _ts.nexusTree[filePath]['child'] || {};
+
             let filePathInfo = getPathInfo(filePath);
             if(filePathInfo.type === 'file'){
-                let fileContent = fs.readFileSync(filePath,'utf8');
+                let fileContent = fs.readFileSync(filePath,'utf8') + '\r\n';
                 fileContent = fileContent.replace(/([\r\n]@include|^@include)(\s{1,})(.*)/ig,item => {
                     let fileArr = item.match(/(@include)(\s{1,})(.*)/i),
-                        fileName = fileArr[fileArr.length - 1].replace(/"|'/ig,'');
-                    return getTaskStr(fileName,path.join(dirPath,...(fileName.split('/')),'..'));
+                        fileName = fileArr[fileArr.length - 1].replace(/"|'/ig,''),
+                        fileDir = path.join(dirPath,...(fileName.split('/')),'..'),
+                        itemFilePath = path.join(fileDir,fileName);
+                    _ts.nexusTree[filePath]['child'][itemFilePath] = null;
+                    return getTaskStr(fileName,fileDir);
                 });
                 return fileContent;
             }else{
@@ -126,6 +154,10 @@ class TaskData{
         })(_ts.path,cwdPath);
         return result;
     }
+    /**
+     * 获取任务数据
+     * @returns {object} 任务数据
+     */
     getObj(){
         const _ts = this;
         let result,
@@ -156,7 +188,7 @@ class TaskData{
 
             if(strArr[i+1] === titleDelimiter){
                 result = result || {};
-                task = result[item] = [];
+                task = result[`task_${item}`] = [];
                 i++;
             }else if(task){
                 task.push(getTaskObj(item));
@@ -174,10 +206,12 @@ class AntTask{
         _ts.logDir = process.argv[2] ? path.join(process.argv[2],'..','antTaskLogs') : 'antTaskLogs';
         _ts.taskCount = 0;
     }
+    /**
+     * 任务初始化方法
+     */
     async init(){
         const _ts = this;
         let taskConfigPath = process.argv[2];
-
         if(taskConfigPath && taskConfigPath[0] === "-"){
             switch (taskConfigPath.toLocaleLowerCase()) {
                 case '-v':
@@ -202,21 +236,31 @@ class AntTask{
             throw error;
         };
     }
-    // 运行任务
+    /**
+     * 运行任务方法
+     * @param {object} obj 任务数据
+     * @returns {promise}
+     */
     runTask(obj){
         const _ts = this;
         return new Promise(async(resolve,reject)=>{
             for(let key in obj){
                 _ts.taskCount++;
-                console.log(key);
+                let taskName = key.slice(5);
+                console.log(taskName);
                 echoLine('=');
-                let taskList = await _ts.runList(obj[key],key);
+                let taskList = await _ts.runList(obj[key],taskName);
                 console.log(taskList);
             };
             resolve(_ts.taskCount);
         });
     }
-    // 运行列表
+    /**
+     * 运行一个任务列表
+     * @param {array} list 任务列表
+     * @param {string} taskName 任务名称
+     * @returns {promise}
+     */
     runList(list,taskName){
        const _ts = this;
        let sTime = +new Date,
@@ -241,7 +285,13 @@ class AntTask{
             resolve(`  有${taskCount}个子任务，共运行时长${formatTime(eTime - sTime)}\r\n`);
         });
     }
-    // 运行方法
+    /**
+     * 运行方法
+     * @param {string} exe 程序执行方式
+     * @param {array} args 执行参数
+     * @param {string} logName 任务日志名称
+     * @returns {promise}
+     */
     run(exe,args,logName){
         const _ts = this;
         let option = {shell:true},
@@ -280,7 +330,11 @@ class AntTask{
             });
         });
     }
-    // 获取任务数据
+    /**
+     * 获取任务数据
+     * @param {string} taskConfigPath 任务配置文件路径
+     * @returns {object}  任务数据
+     */
     getData(taskConfigPath){
         const _ts = this;
         let taskPath = taskConfigPath || 'task.txt',
@@ -292,7 +346,10 @@ class AntTask{
         };
     }
     
-    // 保证目录存在，并清空
+    /**
+     * 保证目录存在，并清空
+     * @param {string} pathStr 目录路径
+     */
     emptyDir(pathStr){
         const _ts = this;
         let pathInfo = getPathInfo(pathStr),
@@ -331,6 +388,6 @@ antTask.init().then(v => {
     console.log(`共有 ${v} 个任务执行完成`);
 }).catch(err => {
     echoLine('*');
-    console.log('吼吼！兄得，执行出错了呢！');
+    console.log('吼吼！兄得，出错了呢！');
     console.log(err);
 });
