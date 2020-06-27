@@ -175,9 +175,13 @@ class TaskData{
                 result.args = arr.slice(1);
                 return result;
             },
-            task;
+            task,
+            isIgnore;
         a:for(let i=0,len=strArr.length; i<len; i++){
             let item = strArr[i];
+            if(item === titleDelimiter){            // 如果 title 被注释了，则内任务内容可被忽略
+                isIgnore = true;
+            };
             if(
                 /^[#@\s]$/i.test(item[0]) ||        // 如果是注释或保留关键字
                 item === titleDelimiter ||          // 或是 title
@@ -185,12 +189,13 @@ class TaskData{
             ){
                 continue a;
             };
-
+            
             if(strArr[i+1] === titleDelimiter){
+                isIgnore = false;
                 result = result || {};
                 task = result[`task_${item}`] = [];
                 i++;
-            }else if(task){
+            }else if(task && !isIgnore){
                 task.push(getTaskObj(item));
             };
         };
