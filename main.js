@@ -107,13 +107,12 @@ class TaskData{
     isLimited(){
         const _ts = this,
             checkList = {};
-
         for(let key in _ts.nexusTree){
             let child = _ts.nexusTree[key].child;
             checkList[key] = null;
             for(let _key in child){
                 if(checkList[_key] !== undefined){
-                    return true;
+                    return key;
                 };
             };
         };
@@ -129,8 +128,9 @@ class TaskData{
         let result,
             getTaskStr;
         result = (getTaskStr = (filePath,dirPath)=>{
-            if(_ts.isLimited()){
-                throw new Error('任务存在死循环嵌套，请检查「@include」调用');
+            let isLimited = _ts.isLimited();
+            if(isLimited){
+                throw new Error(`${isLimited} 存在死循环套用`);
             };
             filePath = path.join(dirPath,filePath);
             _ts.nexusTree[filePath] =  _ts.nexusTree[filePath] || {};
