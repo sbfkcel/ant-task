@@ -102,7 +102,7 @@ class TaskData{
     }
     /**
      * 检查是否为死循环嵌套
-     * @returns {boolean}
+     * @returns {string|undefined} 存在死循环嵌套的文件路径
      */
     isLimited(){
         const _ts = this,
