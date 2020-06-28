@@ -183,7 +183,7 @@ class TaskData{
                 isIgnore = true;
             };
             if(
-                /^[#@\s]$/i.test(item[0]) ||        // 如果是注释或保留关键字
+                /^(\s{0,}[#@])/i.test(item) ||      // 如果是注释或保留关键字
                 item === titleDelimiter ||          // 或是 title
                 item === ""                         // 又或者是任务内容为空，都跳出本次处理
             ){
